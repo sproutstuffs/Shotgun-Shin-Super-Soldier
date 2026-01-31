@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Threading;
 using UnityEngine;
 
 
@@ -33,11 +34,18 @@ public class Metronome : MonoBehaviour
 
     [Header("Settings")]
 
+    [SerializeField, Tooltip("Mute the metronome's ticking.")]
+    private bool mute = false;
+    private AudioSource audioSource;
+
     [SerializeField, Tooltip("Sets the speed at which the game is played.")]
     private double BPM = 100;
 
     [SerializeField, Tooltip("Sets how many beats there are in a bar (keep to a multiple of four)."), Range(1, 8)]
     private int subdivisions = 4;
+
+    [SerializeField, Tooltip("Increases or decreases the input multiplier window."), Range(1, 10)]
+    private float inputWindowMultiplier = 4f;
 
     //[SerializeField, Tooltip("A multiplier for how long the input window is for each beat (customise for difficulty modification)"), Range(0.5f, 1.5f)] // May need to change the range later!
     //private float beatLengthMult = 1;
@@ -55,14 +63,16 @@ public class Metronome : MonoBehaviour
 
     // ---- EVENTS ---- //
 
-    // Event for when a beat is hit.
-    public event Action<double> Beat;
+    // Event for when a beat is hit. Passes the next beat time and input window to any listeners.
 
+    public event Action<double, double> Beat;
+     
     // ---- UNITY FUNCTIONS ---- //
 
     private void Awake() {
 
-        Debug.Log("Metronome Awake");
+        Debug.Log("Metronome Started!");
+        audioSource = GetComponent<AudioSource>();
         Recalculate();
     }
 
@@ -70,22 +80,26 @@ public class Metronome : MonoBehaviour
 
         // Getting the current time in the audio system.
         double currentTime = AudioSettings.dspTime;
-        //currentTime += Time.deltaTime;
-
-        //Debug.Log("Current Time (DSP): " + currentTime);
-        //Debug.Log("Next Beat Time: " + nextBeatTime + "\n");
 
         while (currentTime > nextBeatTime) {
-           
-            Beat.Invoke(nextBeatTime);
+
+            //Passing the next beat time and input window to any listeners.
+
+            Beat.Invoke(nextBeatTime, inputWindow);
             nextBeatTime += beatLength;
             visualiser = true;
+
+            if (mute != true) {
+
+                audioSource.Play();
+            
+            }
 
         }
 
         
-        visualiser = false;
 
+        visualiser = false;
     }
 
     // ---- MY FUNCTIONS ---- //
@@ -95,7 +109,7 @@ public class Metronome : MonoBehaviour
 
         beatLength = 60 / (BPM * subdivisions);
         nextBeatTime = AudioSettings.dspTime + beatLength;
-        inputWindow = beatLength / 2;
+        inputWindow = beatLength / inputWindowMultiplier;
 
     }
 
